@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    .status-indicator {
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 10px;
+    }
+
+    .status-online {
+      background-color: green;
+    }
+
+    .status-offline {
+      background-color: red;
+    }
+
+    #chat-box {
+      margin-top: 20px;
+      max-width: 400px;
+    }
+
+    #messages {
+      border: 1px solid #ccc;
+      padding: 10px;
+      height: 200px;
+      overflow-y: auto;
+      margin-bottom: 10px;
+    }
+
+    #message-input {
+      width: calc(100% - 100px);
+      padding: 10px;
+    }
+
+    #send-btn {
+      padding: 10px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div id="status">
+    <span class="status-indicator" id="status-indicator"></span>
+    <span id="status-text">Checking LLM status...</span>
+  </div>
+
+  <div id="chat-box" style="display: none;">
+    <div id="messages"></div>
+    <input type="text" id="message-input" placeholder="Pose ta question ici..." />
+    <button id="send-btn">Envoyer</button>
+  </div>
+
+  <script>
+    const llmUrl = "https://husky-darling-sharply.ngrok-free.app";
+
+    function checkLLMStatus() {
+      fetch(llmUrl + '/health', { method: 'GET' })
+        .then(response => {
+          if (response.ok) {
+            document.getElementById("status-indicator").className = "status-indicator status-online";
+            document.getElementById("status-text").textContent = "LLM est connecté";
+            document.getElementById("chat-box").style.display = "block";
+          } else {
+            document.getElementById("status-indicator").className = "status-indicator status-offline";
+            document.getElementById("status-text").textContent = "LLM est hors ligne";
+          }
+        })
+        .catch(error => {
+          document.getElementById("status-indicator").className = "status-indicator status-offline";
+          document.getElementById("status-text").textContent = "LLM est hors ligne";
+        });
+    }
+
+    function sendMessage() {
+      const input = document.getElementById('message-input').value;
+      if (!input.trim()) return;
+
+      const messageBox = document.getElementById('messages');
+      const messageElem = document.createElement('div');
+      messageElem.textContent = "Moi: " + input;
+      messageBox.appendChild(messageElem);
+      messageBox.scrollTop = messageBox.scrollHeight;
+
+      fetch(llmUrl + '/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: input })
+      })
+      .then(response => response.json())
+      .then(data => {
+        const replyElem = document.createElement('div');
+        replyElem.textContent = "LLM: " + data.reply;
+        messageBox.appendChild(replyElem);
+        messageBox.scrollTop = messageBox.scrollHeight;
+      })
+      .catch(error => {
+        const errorElem = document.createElement('div');
+        errorElem.textContent = "Erreur: Impossible de contacter le LLM.";
+        messageBox.appendChild(errorElem);
+      });
+
+      document.getElementById('message-input').value = '';
+    }
+
+    document.getElementById('send-btn').addEventListener('click', sendMessage);
+    document.getElementById('message-input').addEventListener('keypress', function(event) {
+      if (event.key === 'Enter') {
+        sendMessage();
+      }
+    });
+
+    checkLLMStatus();
+    setInterval(checkLLMStatus, 5000);
+  </script>
+</body>
+</html>
